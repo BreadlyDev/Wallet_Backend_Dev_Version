@@ -6,8 +6,8 @@ from . import services, schemas
 wallet_router = APIRouter()
 
 
-@wallet_router.get("/get")
-async def get_wallet_router(user_id: int, session: AsyncSession = Depends(get_async_session)):
+@wallet_router.get("/get/wallet")
+async def get_wallet(user_id: int, session: AsyncSession = Depends(get_async_session)):
     return await services.get__wallet(user_id=user_id, session=session)
 
 
