@@ -176,7 +176,7 @@ async def create_transaction(wallet_id: int, transaction: dict, session: AsyncSe
 
 async def buy__currency(user_id: int, transaction: schemas.PurchaseCreateSchema, session: AsyncSession = async_session_maker()):
     try:
-        await check_user_exists(user_id=user_id, session=session)
+        await check_user_exists(user_id=user_id)
         transaction_dict = transaction.model_dump()
         t_currency = transaction_dict.get("currency", None).upper()
         c_quantity = transaction_dict.get("quantity", None)
@@ -203,6 +203,8 @@ async def buy__currency(user_id: int, transaction: schemas.PurchaseCreateSchema,
         balance_dict = {"quantity": balance}
         await set__balance(user_id=user_id, balance_data=schemas.BalanceChangeSchema(**balance_dict), session=session)
         return {"message": f"{c_quantity} {t_currency} successfully purchased"}
+    except HTTPException as e:
+        return e
     except Exception as e:
         print(e)
     finally:
@@ -210,30 +212,39 @@ async def buy__currency(user_id: int, transaction: schemas.PurchaseCreateSchema,
 
 
 async def sell__currency(user_id: int, transaction: schemas.TransactionCreateSchema, session: AsyncSession = async_session_maker()):
-    transaction_dict = transaction.model_dump()
-    t_currency = transaction_dict.get("currency", None).upper()
-    c_quantity = transaction_dict.get("quantity", None)
-    transaction_dict["currency"] = t_currency
-    await check_quantity(quantity=c_quantity)
+    try:
+        await check_user_exists(user_id=user_id)
+        transaction_dict = transaction.model_dump()
+        t_currency = transaction_dict.get("currency", None).upper()
+        c_quantity = transaction_dict.get("quantity", None)
+        await check_quantity(quantity=c_quantity)
 
-    price = await get_current_price(t_currency)
-    balance = await get__balance(user_id=user_id, session=session)
+        price = await get_current_price(t_currency)
+        transaction_dict["currency"] = t_currency
+        transaction_dict["price"] = price
+        balance = await get__balance(user_id=user_id, session=session)
 
-    balance = balance + c_quantity * price
-    currency_dict = {"name": t_currency, "quantity": c_quantity}
-    wallet = await get__wallet(user_id=user_id, session=session)
-    currency = await get__currency(wallet_id=wallet.id, currency=t_currency, session=session)
+        balance = balance + c_quantity * price
+        currency_dict = {"name": t_currency, "quantity": c_quantity}
+        wallet = await get__wallet(user_id=user_id, session=session)
+        currency = await get__currency(wallet_id=wallet.id, currency=t_currency, session=session)
 
-    await check_currency_exist(currency=currency)
-    await check_c_quantity_not_negative(currency=currency, sell_c_quantity=c_quantity)
+        await check_currency_exist(currency=currency)
+        await check_c_quantity_not_negative(currency=currency, sell_c_quantity=c_quantity)
 
-    currency_dict["quantity"] = currency.quantity - c_quantity
-    await set__currency(user_id=user_id, currency_data=schemas.CurrencyChangeSchema(**currency_dict))
+        currency_dict["quantity"] = currency.quantity - c_quantity
+        await set__currency(user_id=user_id, currency_data=schemas.CurrencyChangeSchema(**currency_dict))
 
-    await create_transaction(wallet_id=wallet.id, transaction=transaction_dict, session=session)
-    balance_dict = {"name": "USDT", "quantity": balance}
-    await set__balance(user_id=user_id, balance_data=schemas.BalanceChangeSchema(**balance_dict))
-
+        await create_transaction(wallet_id=wallet.id, transaction=transaction_dict, session=session)
+        balance_dict = {"name": "USDT", "quantity": balance}
+        await set__balance(user_id=user_id, balance_data=schemas.BalanceChangeSchema(**balance_dict))
+        return {"message": f"{c_quantity} {t_currency} successfully sold"}
+    except HTTPException as e:
+        return e
+    except Exception as e:
+        print(e)
+    finally:
+        await session.close()
 
 # async def make_transaction(user_id: int, transaction_data: TransactionCreateSchema, session: AsyncSession = async_session_maker()):
 #     async with session.begin():
