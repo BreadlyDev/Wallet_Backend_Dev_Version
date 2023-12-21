@@ -88,6 +88,7 @@ async def set__balance(user_id: int, balance_data: schemas.BalanceChangeSchema, 
     try:
         await check_user_exists(user_id=user_id)
         await set__currency(user_id=user_id, currency_data=balance_data, session=session)
+        return {"message": "Balance successfully set/changed."}
     except Exception as e:
         print(e)
     finally:
