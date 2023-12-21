@@ -12,7 +12,7 @@ from src.auth.schemas import RoleCreateSchema
 from src.auth.utilts import get_user_db
 from src.config import SECRET
 from src.database import async_session_maker
-from src.wallet.services import create_wallet
+from src.wallet.services import create__wallet
 from src.wallet.schemas import WalletCreateSchema
 
 
@@ -26,7 +26,7 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
             "user_id": user.id,
         }
         wallet_data = WalletCreateSchema(**wallet_dict)
-        await create_wallet(wallet_data=wallet_data)
+        await create__wallet(wallet_data=wallet_data)
 
     async def on_after_forgot_password(
             self, user: User, token: str, request: Optional[Request] = None
