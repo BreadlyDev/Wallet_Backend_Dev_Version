@@ -27,6 +27,7 @@ class Transaction(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     wallet_id: Mapped[int] = mapped_column(ForeignKey("wallet.id", onupdate="NO ACTION", ondelete="CASCADE"), nullable=False)
     currency: Mapped[str] = mapped_column(String(100), nullable=False)
+    currency_2: Mapped[str] = mapped_column(String(100), nullable=False)
     quantity: Mapped[int] = mapped_column(default=0, nullable=False)
     price: Mapped[int] = mapped_column(nullable=False)
     type: Mapped[str] = mapped_column(nullable=False)

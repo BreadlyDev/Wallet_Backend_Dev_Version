@@ -26,6 +26,10 @@ async def buy_currency(user_id: int, transaction: schemas.SaleCreateSchema, sess
     return await services.sell__currency(user_id=user_id, transaction=transaction, session=session)
 
 
+@wallet_router.post("/swap/currency")
+async def swap_currency(user_id: int, transaction: schemas.SwapCreateSchema, session: AsyncSession = Depends(get_async_session)):
+    return await services.swap__currency(user_id=user_id, transaction=transaction, session=session)
+
 # @wallet_router.get("/get/currency_data")
 # async def get_currency_data_router():
 #     return await get_currency_data()

@@ -48,4 +48,5 @@ class SaleCreateSchema(TransactionCreateSchema):
 
 
 class SwapCreateSchema(TransactionCreateSchema):
+    currency_2: str
     type: str = "SWAP"
