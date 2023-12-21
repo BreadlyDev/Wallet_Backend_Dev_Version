@@ -25,14 +25,17 @@ class CurrencyReadSchema(BaseModel):
 
 
 class CurrencyChangeSchema(BaseModel):
+    name: str
+    quantity: int | float
+
+
+class BalanceChangeSchema(CurrencyChangeSchema):
     name: str = "USDT"
-    quantity: int
 
 
 class TransactionCreateSchema(BaseModel):
     currency: str
     quantity: int
-    price: int
     type: str
 
 

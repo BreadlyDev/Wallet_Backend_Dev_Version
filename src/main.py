@@ -1,9 +1,8 @@
 import uvicorn
 
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI
 from redis import RedisError
 from starlette.middleware.cors import CORSMiddleware
-from starlette.responses import HTMLResponse
 from src.auth.routers import auth_router
 from src.wallet import services
 from src.wallet.services import *
@@ -66,14 +65,14 @@ async def startup_event():
     print("Server is starting")
 
 
-@app.on_event("startup")
-async def on_startup():
-    try:
-        await get_currency_data()
-    except asyncio.TimeoutError as e:
-        print(e)
-    except RedisError as e:
-        print(e)
+# @app.on_event("startup")
+# async def on_startup():
+#     try:
+#         await get_currency_data()
+#     except asyncio.TimeoutError as e:
+#         print(e)
+#     except RedisError as e:
+#         print(e)
 
 if __name__ == "__main__":
     uvicorn.run(app, port=8080, reload=True)

@@ -1,11 +1,5 @@
-from typing import List
-
 from fastapi_mail import ConnectionConfig, MessageSchema, MessageType, FastMail
-from pydantic import EmailStr, BaseModel
-
 from src.config import MAIL_EMAIL, MAIL_PASSWORD, MAIL_HOST
-
-
 
 
 conf = ConnectionConfig(

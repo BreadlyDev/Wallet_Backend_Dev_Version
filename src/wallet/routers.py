@@ -1,32 +1,27 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_async_session
-from .services import get_wallet, set_balance
-from src.wallet.schemas import CurrencyChangeSchema, TransactionCreateSchema
 from . import services, schemas
+
 wallet_router = APIRouter()
 
 
 @wallet_router.get("/get")
 async def get_wallet_router(user_id: int, session: AsyncSession = Depends(get_async_session)):
-    return await get_wallet(user_id=user_id, session=session)
+    return await services.get__wallet(user_id=user_id, session=session)
 
 
 @wallet_router.post("/set/balance")
-async def set_balance_router(user_id: int, currency_data: CurrencyChangeSchema, session: AsyncSession = Depends(get_async_session)):
-    return await set_balance(user_id=user_id, currency_data=currency_data, session=session)
+async def set_balance(user_id: int, balance_data: schemas.BalanceChangeSchema, session: AsyncSession = Depends(get_async_session)):
+    return await services.set__balance(user_id=user_id, balance_data=balance_data, session=session)
 
 
-# @wallet_router.post("/make/transaction")
-# async def make_transaction_router(user_id: int, transaction_data: TransactionCreateSchema, session: AsyncSession = Depends(get_async_session)):
-#     return await make_transaction(user_id=user_id, transaction_data=transaction_data, session=session)
-
-@wallet_router.post("buy/currency")
+@wallet_router.post("/buy/currency")
 async def buy_currency(user_id: int, transaction: schemas.PurchaseCreateSchema, session: AsyncSession = Depends(get_async_session)):
     return await services.buy__currency(user_id=user_id, transaction=transaction, session=session)
 
 
-@wallet_router.post("sell/currency")
+@wallet_router.post("/sell/currency")
 async def buy_currency(user_id: int, transaction: schemas.SaleCreateSchema, session: AsyncSession = Depends(get_async_session)):
     return await services.sell__currency(user_id=user_id, transaction=transaction, session=session)
 
