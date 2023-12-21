@@ -37,12 +37,12 @@ class TransactionCreateSchema(BaseModel):
 
 
 class PurchaseCreateSchema(TransactionCreateSchema):
-    super().type = "PURCHASE"
+    type: str = "PURCHASE"
 
 
 class SaleCreateSchema(TransactionCreateSchema):
-    super().type = "SALE"
+    type: str = "SALE"
 
 
 class SwapCreateSchema(TransactionCreateSchema):
-    super().type = "SWAP"
+    type: str = "SWAP"
