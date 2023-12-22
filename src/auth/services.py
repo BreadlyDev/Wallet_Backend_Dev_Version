@@ -113,3 +113,4 @@ async def create__default__role(session: AsyncSession = async_session_maker()):
         await session.execute(user_role)
         await session.execute(admin_role)
         await session.commit()
+        return {"message": "default roles added"}

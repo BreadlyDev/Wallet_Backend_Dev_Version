@@ -17,20 +17,25 @@ async def set_balance(user_id: int, balance_data: schemas.BalanceChangeSchema, s
 
 
 @wallet_router.post("/buy/currency")
-async def buy_currency(user_id: int, transaction: schemas.PurchaseCreateSchema, session: AsyncSession = Depends(get_async_session)):
+async def buy_currency(user_id: int, transaction: schemas.PurchaseCoinSchema, session: AsyncSession = Depends(get_async_session)):
     return await services.buy__currency(user_id=user_id, transaction=transaction, session=session)
 
 
 @wallet_router.post("/sell/currency")
-async def sell_currency(user_id: int, transaction: schemas.SaleCreateSchema, session: AsyncSession = Depends(get_async_session)):
+async def sell_currency(user_id: int, transaction: schemas.SaleCoinSchema, session: AsyncSession = Depends(get_async_session)):
     return await services.sell__currency(user_id=user_id, transaction=transaction, session=session)
 
 
 @wallet_router.post("/swap/currency")
-async def swap_currency(user_id: int, transaction: schemas.SwapCreateSchema, session: AsyncSession = Depends(get_async_session)):
+async def swap_currency(user_id: int, transaction: schemas.SwapCoinSchema, session: AsyncSession = Depends(get_async_session)):
     return await services.swap__currency(user_id=user_id, transaction=transaction, session=session)
 
-# @wallet_router.get("/get/currency_data")
+
+@wallet_router.post("/create/currency")
+async def create_currency(currency: schemas.CurrencyCreateSchema, session: AsyncSession = Depends(get_async_session)):
+    return await services.create__currency(currency=currency, session=session)
+
+# @wallet_router.get("/get/currency")
 # async def get_currency_data_router():
 #     return await get_currency_data()
 

@@ -34,11 +34,11 @@ async def check_user_exists(user_id: int, session: AsyncSession = async_session_
         await session.close()
 
 
-async def check_wallet_exists(user_id: int, wallet_id: int, session: AsyncSession = async_session_maker()):
-    query = select(Wallet).where((Wallet.id == wallet_id) & Wallet.user_id == user_id)
+async def check_wallet_exists(wallet_id: int, session: AsyncSession = async_session_maker()):
+    query = select(Wallet).where(Wallet.id == wallet_id)
     result = await session.execute(query)
-    user = result.scalar()
-    if not user:
+    wallet = result.scalar()
+    if not wallet:
         raise HTTPException(status_code=404, detail={"message": f"Wallet not found"})
 
 
@@ -68,7 +68,7 @@ async def check_price_exists(price):
 
 
 async def check_currency_in_list(currency):
-    if currency not in BINANCE_CURRENCY_LIST:
+    if currency not in BINANCE_CURRENCY_LIST and currency != "USDT":
         raise HTTPException(status_code=400, detail=
                 {"message": "Currency not found. Unfortunately we don't support other currencies"})
 
@@ -89,14 +89,14 @@ async def get__wallet(user_id: int, session: AsyncSession = async_session_maker(
 async def create__wallet(wallet_data: schemas.WalletCreateSchema, session: AsyncSession = async_session_maker()):
     try:
         stmt = insert(Wallet).values(**wallet_data.model_dump())
-        wallet_result = await session.execute(stmt)
+        wallet = await session.execute(stmt)
         await session.commit()
 
-        wallet_id = wallet_result.inserted_primary_key[0]
-        new_wallet_data = wallet_data.model_dump()
-        new_wallet_data["wallet_id"] = wallet_id
+        wallet_id = wallet.inserted_primary_key[0]
+        balance_data = wallet_data.model_dump()
+        balance_data["wallet_id"] = wallet_id
 
-        await create_currency(currency_data=schemas.CurrencyCreateSchema(**new_wallet_data))
+        await create__currency(currency=schemas.BalanceSetSchema(**balance_data))
     except Exception as e:
         print(e)
     finally:
@@ -104,10 +104,11 @@ async def create__wallet(wallet_data: schemas.WalletCreateSchema, session: Async
 
 
 # Currency/Coin services
-async def create_currency(currency_data: schemas.CurrencyCreateSchema, session: AsyncSession = async_session_maker()):
+async def create__currency(currency: schemas.CurrencyCreateSchema, session: AsyncSession = async_session_maker()):
     try:
-        await check_currency_in_list(currency=currency_data.name)
-        stmt = insert(Currency).values(**currency_data.model_dump())
+        await check_wallet_exists(wallet_id=currency.wallet_id, session=session)
+        await check_currency_in_list(currency=currency.name)
+        stmt = insert(Currency).values(**currency.model_dump())
         await session.execute(stmt)
         await session.commit()
     except Exception as e:
@@ -129,13 +130,13 @@ async def get__currency(wallet_id: int, currency: str, session: AsyncSession = a
         await session.close()
 
 
-async def set__currency(user_id: int, currency_data: schemas.CurrencyChangeSchema, session: AsyncSession = async_session_maker()):
+async def set__currency(user_id: int, currency: schemas.CurrencyChangeSchema, session: AsyncSession = async_session_maker()):
     try:
         await check_user_exists(user_id=user_id)
-        await check_currency_in_list(currency=currency_data.name)
+        await check_currency_in_list(currency=currency.name)
         wallet = await get__wallet(user_id=user_id, session=session)
-        stmt = update(Currency).values(**currency_data.model_dump()).where(
-            (Currency.wallet_id == wallet.id) & (Currency.name == currency_data.name)
+        stmt = update(Currency).values(**currency.model_dump()).where(
+            (Currency.wallet_id == wallet.id) & (Currency.name == currency.name)
         )
         await session.execute(stmt)
         await session.commit()
@@ -145,10 +146,10 @@ async def set__currency(user_id: int, currency_data: schemas.CurrencyChangeSchem
         await session.close()
 
 
-async def set__balance(user_id: int, balance_data: schemas.BalanceChangeSchema, session: AsyncSession = async_session_maker()):
+async def set__balance(user_id: int, balance: schemas.BalanceChangeSchema, session: AsyncSession = async_session_maker()):
     try:
         await check_user_exists(user_id=user_id)
-        await set__currency(user_id=user_id, currency_data=balance_data, session=session)
+        await set__currency(user_id=user_id, currency=balance, session=session)
         return {"message": "Balance successfully set/changed."}
     except HTTPException as e:
         return e
@@ -196,7 +197,7 @@ async def create_transaction(wallet_id: int, transaction: dict, session: AsyncSe
         await session.close()
 
 
-async def buy__currency(user_id: int, transaction: schemas.PurchaseCreateSchema, session: AsyncSession = async_session_maker()):
+async def buy__currency(user_id: int, transaction: schemas.PurchaseCoinSchema, session: AsyncSession = async_session_maker()):
     try:
         await check_user_exists(user_id=user_id)
         transaction_dict = transaction.model_dump()
@@ -218,14 +219,14 @@ async def buy__currency(user_id: int, transaction: schemas.PurchaseCreateSchema,
         currency = await get__currency(wallet_id=wallet.id, currency=t_currency, session=session)
         if currency:
             currency_dict["quantity"] = currency.quantity + c_quantity
-            await set__currency(user_id=user_id, currency_data=schemas.CurrencyChangeSchema(**currency_dict))
+            await set__currency(user_id=user_id, currency=schemas.CurrencyChangeSchema(**currency_dict))
         else:
             currency_dict["wallet_id"] = wallet.id
-            await create_currency(currency_data=schemas.CurrencyCreateSchema(**currency_dict))
+            await create__currency(currency=schemas.CurrencyCreateSchema(**currency_dict))
 
         await create_transaction(wallet_id=wallet.id, transaction=transaction_dict, session=session)
         balance_dict = {"quantity": balance}
-        await set__balance(user_id=user_id, balance_data=schemas.BalanceChangeSchema(**balance_dict), session=session)
+        await set__balance(user_id=user_id, balance=schemas.BalanceChangeSchema(**balance_dict), session=session)
         return {"message": f"{c_quantity} {t_currency} successfully purchased"}
     except HTTPException as e:
         return e
@@ -235,7 +236,7 @@ async def buy__currency(user_id: int, transaction: schemas.PurchaseCreateSchema,
         await session.close()
 
 
-async def sell__currency(user_id: int, transaction: schemas.SaleCreateSchema, session: AsyncSession = async_session_maker()):
+async def sell__currency(user_id: int, transaction: schemas.SaleCoinSchema, session: AsyncSession = async_session_maker()):
     try:
         await check_user_exists(user_id=user_id)
         transaction_dict = transaction.model_dump()
@@ -259,11 +260,11 @@ async def sell__currency(user_id: int, transaction: schemas.SaleCreateSchema, se
         await check_c_quantity_not_negative(currency=currency, sell_c_quantity=c_quantity)
 
         currency_dict["quantity"] = currency.quantity - c_quantity
-        await set__currency(user_id=user_id, currency_data=schemas.CurrencyChangeSchema(**currency_dict))
+        await set__currency(user_id=user_id, currency=schemas.CurrencyChangeSchema(**currency_dict))
 
         await create_transaction(wallet_id=wallet.id, transaction=transaction_dict, session=session)
         balance_dict = {"name": "USDT", "quantity": balance}
-        await set__balance(user_id=user_id, balance_data=schemas.BalanceChangeSchema(**balance_dict))
+        await set__balance(user_id=user_id, balance=schemas.BalanceChangeSchema(**balance_dict))
         return {"message": f"{c_quantity} {t_currency} successfully sold"}
     except HTTPException as e:
         return e
@@ -273,7 +274,7 @@ async def sell__currency(user_id: int, transaction: schemas.SaleCreateSchema, se
         await session.close()
 
 
-async def swap__currency(user_id: int, transaction: schemas.SwapCreateSchema, session: AsyncSession = async_session_maker()):
+async def swap__currency(user_id: int, transaction: schemas.SwapCoinSchema, session: AsyncSession = async_session_maker()):
     try:
         await check_user_exists(user_id=user_id)
         transaction_dict = transaction.model_dump()
@@ -300,14 +301,18 @@ async def swap__currency(user_id: int, transaction: schemas.SwapCreateSchema, se
         w_currency_2 = await get__currency(wallet_id=wallet.id, currency=t_currency_2)
 
         await check_currency_exist(currency=w_currency_1)
-        await check_currency_exist(currency=w_currency_2)
         await check_c_quantity_not_negative(currency=w_currency_1, sell_c_quantity=c_quantity)
 
         currency_dict_1["quantity"] = w_currency_1.quantity - c_quantity
-        currency_dict_2["quantity"] = w_currency_2.quantity + c_quantity_2
 
-        await set__currency(user_id=user_id, currency_data=schemas.CurrencyChangeSchema(**currency_dict_1))
-        await set__currency(user_id=user_id, currency_data=schemas.CurrencyChangeSchema(**currency_dict_2))
+        await set__currency(user_id=user_id, currency=schemas.CurrencyChangeSchema(**currency_dict_1))
+        if w_currency_2:
+            currency_dict_2["quantity"] = w_currency_2.quantity + c_quantity_2
+            await set__currency(user_id=user_id, currency=schemas.CurrencyChangeSchema(**currency_dict_2))
+        else:
+            currency_dict_2["quantity"] = c_quantity_2
+            currency_dict_2["wallet_id"] = wallet.id
+            await create__currency(currency=schemas.CurrencyCreateSchema(**currency_dict_2))
         await create_transaction(wallet_id=wallet.id, transaction=transaction_dict, session=session)
         return {"message": f"{c_quantity} {t_currency} successfully swapped to {c_quantity_2} {t_currency_2}"}
     except HTTPException as e:
