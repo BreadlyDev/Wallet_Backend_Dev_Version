@@ -8,11 +8,10 @@ from sqlalchemy import insert, update, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import WebSocket, HTTPException
 from src.database import async_session_maker
-from src.config import BINANCE_WEBSOCKET_URL, CURRENCY_CACHE_TIME, BINANCE_WEBSOCKET_ALL_COINS_URL
+from src.config import BINANCE_WEBSOCKET_URL, CURRENCY_CACHE_TIME, BINANCE_WEBSOCKET_ALL_COINS_URL, BINANCE_CURRENCY_LIST
 from src.database import redis_client
 from src.auth.models import User
 from . import schemas
-from .schemas import CurrencyCreateSchema, CurrencyChangeSchema
 from .models import Wallet, Currency, Transaction, TRANSACTION_OPERATIONS
 
 
@@ -63,6 +62,17 @@ async def check_c_quantity_not_negative(currency, sell_c_quantity):
         raise HTTPException(status_code=400, detail={"message": "You can't sell more coins than you have"})
 
 
+async def check_price_exists(price):
+    if not price:
+        raise HTTPException(status_code=400, detail={"message": "Price not found"})
+
+
+async def check_currency_in_list(currency):
+    if currency not in BINANCE_CURRENCY_LIST:
+        raise HTTPException(status_code=400, detail=
+                {"message": "Currency not found. Unfortunately we don't support other currencies"})
+
+
 # Wallet services
 async def get__wallet(user_id: int, session: AsyncSession = async_session_maker()):
     try:
@@ -86,7 +96,7 @@ async def create__wallet(wallet_data: schemas.WalletCreateSchema, session: Async
         new_wallet_data = wallet_data.model_dump()
         new_wallet_data["wallet_id"] = wallet_id
 
-        await create_currency(currency_data=CurrencyCreateSchema(**new_wallet_data))
+        await create_currency(currency_data=schemas.CurrencyCreateSchema(**new_wallet_data))
     except Exception as e:
         print(e)
     finally:
@@ -96,6 +106,7 @@ async def create__wallet(wallet_data: schemas.WalletCreateSchema, session: Async
 # Currency/Coin services
 async def create_currency(currency_data: schemas.CurrencyCreateSchema, session: AsyncSession = async_session_maker()):
     try:
+        await check_currency_in_list(currency=currency_data.name)
         stmt = insert(Currency).values(**currency_data.model_dump())
         await session.execute(stmt)
         await session.commit()
@@ -107,6 +118,7 @@ async def create_currency(currency_data: schemas.CurrencyCreateSchema, session: 
 
 async def get__currency(wallet_id: int, currency: str, session: AsyncSession = async_session_maker()):
     try:
+        await check_currency_in_list(currency=currency)
         query = select(Currency).where((Currency.name == currency) & (Currency.wallet_id == wallet_id))
         result = await session.execute(query)
         currency = result.scalar()
@@ -120,6 +132,7 @@ async def get__currency(wallet_id: int, currency: str, session: AsyncSession = a
 async def set__currency(user_id: int, currency_data: schemas.CurrencyChangeSchema, session: AsyncSession = async_session_maker()):
     try:
         await check_user_exists(user_id=user_id)
+        await check_currency_in_list(currency=currency_data.name)
         wallet = await get__wallet(user_id=user_id, session=session)
         stmt = update(Currency).values(**currency_data.model_dump()).where(
             (Currency.wallet_id == wallet.id) & (Currency.name == currency_data.name)
@@ -192,6 +205,8 @@ async def buy__currency(user_id: int, transaction: schemas.PurchaseCreateSchema,
         await check_quantity(quantity=c_quantity)
 
         price = await get_current_price(t_currency)
+        await check_price_exists(price)
+
         transaction_dict["currency"] = t_currency
         transaction_dict["price"] = price
         balance = await get__balance(user_id=user_id, session=session)
@@ -203,10 +218,10 @@ async def buy__currency(user_id: int, transaction: schemas.PurchaseCreateSchema,
         currency = await get__currency(wallet_id=wallet.id, currency=t_currency, session=session)
         if currency:
             currency_dict["quantity"] = currency.quantity + c_quantity
-            await set__currency(user_id=user_id, currency_data=CurrencyChangeSchema(**currency_dict))
+            await set__currency(user_id=user_id, currency_data=schemas.CurrencyChangeSchema(**currency_dict))
         else:
             currency_dict["wallet_id"] = wallet.id
-            await create_currency(currency_data=CurrencyCreateSchema(**currency_dict))
+            await create_currency(currency_data=schemas.CurrencyCreateSchema(**currency_dict))
 
         await create_transaction(wallet_id=wallet.id, transaction=transaction_dict, session=session)
         balance_dict = {"quantity": balance}
@@ -229,6 +244,8 @@ async def sell__currency(user_id: int, transaction: schemas.SaleCreateSchema, se
         await check_quantity(quantity=c_quantity)
 
         price = await get_current_price(t_currency)
+        await check_price_exists(price)
+
         transaction_dict["currency"] = t_currency
         transaction_dict["price"] = price
         balance = await get__balance(user_id=user_id, session=session)
@@ -267,6 +284,8 @@ async def swap__currency(user_id: int, transaction: schemas.SwapCreateSchema, se
 
         price_1 = await get_current_price(t_currency)
         price_2 = await get_current_price(t_currency_2)
+        await check_price_exists(price_1)
+        await check_price_exists(price_2)
 
         c_quantity_2 = round(c_quantity * price_1 / price_2, 2)
 

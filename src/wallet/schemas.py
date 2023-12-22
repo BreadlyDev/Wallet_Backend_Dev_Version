@@ -35,6 +35,7 @@ class BalanceChangeSchema(CurrencyChangeSchema):
 
 class TransactionCreateSchema(BaseModel):
     currency: str
+    currency_2: str = None
     quantity: int
     type: str
 

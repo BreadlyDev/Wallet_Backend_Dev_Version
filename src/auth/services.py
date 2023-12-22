@@ -74,7 +74,7 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
     yield UserManager(user_db)
 
 
-async def create_role(user_id: int, role_data: RoleCreateSchema, session: AsyncSession = async_session_maker()):
+async def create__role(user_id: int, role_data: RoleCreateSchema, session: AsyncSession = async_session_maker()):
     async with session.begin():
         user_is_superuser = select(User.is_superuser).where(User.id == user_id).scalar_subquery()
 
@@ -86,7 +86,7 @@ async def create_role(user_id: int, role_data: RoleCreateSchema, session: AsyncS
         await session.commit()
 
 
-async def get_role(user_id: int, session: AsyncSession = async_session_maker()):
+async def get__role(user_id: int, session: AsyncSession = async_session_maker()):
     async with session.begin():
         user_is_superuser = select(User.is_superuser).where(User.id == user_id).scalar_subquery()
 
@@ -98,7 +98,7 @@ async def get_role(user_id: int, session: AsyncSession = async_session_maker()):
 
 
 # Only for DEVs
-async def create_default_role(session: AsyncSession = async_session_maker()):
+async def create__default__role(session: AsyncSession = async_session_maker()):
     async with session.begin():
 
         role_data = {

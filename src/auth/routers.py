@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.auth.api import google_oauth_client
 from src.auth.base_config import fastapi_users, auth_backend
 from src.auth.schemas import UserRead, UserUpdate, UserCreate, RoleCreateSchema
-from src.auth.services import create_role, get_role, create_default_role
+from src.auth.services import create__role, get__role, create__default__role
 from src.config import SECRET
 from src.database import get_async_session
 
@@ -37,16 +37,16 @@ auth_router.include_router(
 
 
 @auth_router.post("/create/role")
-async def create_role_router(user_id: int, role_data: RoleCreateSchema, session: AsyncSession = Depends(get_async_session)):
-    return await create_role(user_id=user_id, role_data=role_data, session=session)
+async def create_role(user_id: int, role_data: RoleCreateSchema, session: AsyncSession = Depends(get_async_session)):
+    return await create__role(user_id=user_id, role_data=role_data, session=session)
 
 
 @auth_router.post("/get/role")
-async def get_role_router(user_id: int, session: AsyncSession = Depends(get_async_session)):
-    return await get_role(user_id=user_id, session=session)
+async def get_role(user_id: int, session: AsyncSession = Depends(get_async_session)):
+    return await get__role(user_id=user_id, session=session)
 
 
 # Only for DEVs
 @auth_router.post("/create/default_role")
-async def create_default_role_router(session: AsyncSession = Depends(get_async_session)):
-    return await create_default_role(session=session)
+async def create_default_role(session: AsyncSession = Depends(get_async_session)):
+    return await create__default__role(session=session)
