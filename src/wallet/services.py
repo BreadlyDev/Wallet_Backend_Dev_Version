@@ -3,6 +3,7 @@ import json
 
 import requests
 import websockets
+from redis import RedisError
 
 from sqlalchemy import insert, update, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -305,7 +306,6 @@ async def swap__currency(user_id: int, transaction: schemas.SwapCoinSchema, sess
 
         currency_dict_1["quantity"] = w_currency_1.quantity - c_quantity
 
-        await set__currency(user_id=user_id, currency=schemas.CurrencyChangeSchema(**currency_dict_1))
         if w_currency_2:
             currency_dict_2["quantity"] = w_currency_2.quantity + c_quantity_2
             await set__currency(user_id=user_id, currency=schemas.CurrencyChangeSchema(**currency_dict_2))
@@ -313,6 +313,7 @@ async def swap__currency(user_id: int, transaction: schemas.SwapCoinSchema, sess
             currency_dict_2["quantity"] = c_quantity_2
             currency_dict_2["wallet_id"] = wallet.id
             await create__currency(currency=schemas.CurrencyCreateSchema(**currency_dict_2))
+        await set__currency(user_id=user_id, currency=schemas.CurrencyChangeSchema(**currency_dict_1))
         await create_transaction(wallet_id=wallet.id, transaction=transaction_dict, session=session)
         return {"message": f"{c_quantity} {t_currency} successfully swapped to {c_quantity_2} {t_currency_2}"}
     except HTTPException as e:
@@ -321,21 +322,6 @@ async def swap__currency(user_id: int, transaction: schemas.SwapCoinSchema, sess
         print(e)
     finally:
         await session.close()
-
-
-# async def get_currency_data():
-#     try:
-#         i: int = 1
-#         keys = redis_client.keys("*")
-#         values = []
-#         for key in keys:
-#             value = redis_client.get(key)
-#             values.append(value)
-#             print(f"Iter {i}, Key: {key}, Value: {value}")
-#             i += 1
-#         return zip(keys, values)
-#     finally:
-#         redis_client.close()
 
 
 # Redis
@@ -352,6 +338,33 @@ async def save_coin_data_to_redis(json_list):
             redis_client.set(price_key, str(json_data))
     finally:
         redis_client.close()
+
+
+# async def get_currency_data_from_redis(currency: str):
+#     try:
+#         for key in redis_client.scan_iter(f"*_{currency}", count=100):
+#             value = redis_client.get(key)
+#             print(f"{key}  {value}")
+#             yield {key: value}
+#     except Exception as e:
+#         print(f"Error while getting coin data: {e}")
+#     finally:
+#         redis_client.close()
+
+
+async def get_currency_data_from_redis(currency: str, websocket: WebSocket):
+    try:
+        for key in redis_client.scan_iter(f"*_{currency}", count=100):
+            value = redis_client.get(key)
+            data = {key: value}
+            print(data)
+            await websocket.send_json(str(data))
+    except RedisError as e:
+        print(f"Error while getting coin data: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+    finally:
+        await websocket.close()
 
 
 # BinanceAPI services

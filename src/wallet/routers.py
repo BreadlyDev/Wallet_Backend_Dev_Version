@@ -1,5 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.responses import HTMLResponse
+from starlette.websockets import WebSocket
+
 from src.database import get_async_session
 from . import services, schemas
 
@@ -35,6 +38,49 @@ async def swap_currency(user_id: int, transaction: schemas.SwapCoinSchema, sessi
 async def create_currency(currency: schemas.CurrencyCreateSchema, session: AsyncSession = Depends(get_async_session)):
     return await services.create__currency(currency=currency, session=session)
 
+
+@wallet_router.websocket("/ws/coin/price/")
+async def get_currency_data(currency: str, websocket: WebSocket):
+    await websocket.accept()
+    await services.get_currency_data_from_redis(currency=currency, websocket=websocket)
+
+
+@wallet_router.get("/coin/price/get/", tags=["API"])
+def read_root(coin: str):
+    return HTMLResponse(
+        f"""
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <title>WebSocket Example</title>
+            </head>
+            <body>
+                <h1>WebSocket Example</h1>
+                <ul id='tickerList'></ul>
+                <script>
+                try {{
+                    var ws = new WebSocket(`ws://127.0.0.1:8080/api/v1/wallet/ws/coin/price/?coin={coin}`);
+                    ws.onmessage = function(event) {{
+                        var data = JSON.parse(event.data);
+                        console.log(data);
+                        var tickerList = document.getElementById('tickerList');
+                        var listItem = document.createElement('li');
+                        listItem.textContent = data;
+                        tickerList.appendChild(listItem);
+                    }};
+
+                    window.addEventListener('beforeunload', function() {{
+                        ws.close();
+                    }});
+                    }}
+                    catch (e) {{
+                        console.log(e);
+                    }}
+                </script>
+            </body>
+        </html>
+        """
+    )
 # @wallet_router.get("/get/currency")
 # async def get_currency_data_router():
 #     return await get_currency_data()
