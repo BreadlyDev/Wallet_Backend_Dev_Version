@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends
+from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.api import google_oauth_client
 from src.auth.base_config import fastapi_users, auth_backend
+from src.auth.models import User
 from src.auth.schemas import UserRead, UserUpdate, UserCreate, RoleCreateSchema
-from src.auth.services import create__role, get__role, create__default__role
+from src.auth.services import create__role, get__role, create__default__role, login, get_user_manager, UserManager
+from src.auth.utilts import get_user_db
 from src.config import SECRET
 from src.database import get_async_session
 
@@ -34,6 +37,15 @@ auth_router.include_router(
 auth_router.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
 )
+
+
+@auth_router.post("/login/custom")
+async def login_(email: EmailStr, password: str, session: AsyncSession = Depends(get_async_session)):
+    try:
+        return await login(email=email, password=password, session=session)
+    except Exception as e:
+        print(e)
+    # return await fastapi_users.get_user_manager().login(email=email, password=password, session=session)
 
 
 @auth_router.post("/create/role")
