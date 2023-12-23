@@ -185,9 +185,8 @@ async def register(user: UserCreate, session: AsyncSession = async_session_maker
         hashed_password = pwt_context.hash(user.password)
         user_dict = user.model_dump()
         user_dict.pop("password")
-        user_dict["hashed_password"] = hashed_password
 
-        stmt = insert(User).values(**user_dict)
+        stmt = insert(User).values(hashed_password=hashed_password, **user_dict)
         await session.execute(stmt)
         await session.commit()
 
