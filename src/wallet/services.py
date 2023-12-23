@@ -1,6 +1,5 @@
 import asyncio
 import json
-from datetime import datetime, timezone
 
 import requests
 import websockets
@@ -12,7 +11,7 @@ from fastapi import WebSocket, HTTPException
 from starlette.websockets import WebSocketState
 
 from src.database import async_session_maker
-from src.config import BINANCE_WEBSOCKET_URL, CURRENCY_CACHE_TIME, BINANCE_WEBSOCKET_ALL_COINS_URL, BINANCE_CURRENCY_LIST
+from src.config import BINANCE_WEBSOCKET_URL, CURRENCY_CACHE_TIME, BINANCE_WEBSOCKET_ALL_COINS_URL, BINANCE_CURRENCY_LIST, BINANCE_USDT_PAIRS_LIST
 from src.database import redis_client
 from src.auth.models import User
 from . import schemas
@@ -73,6 +72,12 @@ async def check_price_exists(price):
 
 async def check_currency_in_list(currency):
     if currency not in BINANCE_CURRENCY_LIST and currency != "USDT":
+        raise HTTPException(status_code=400, detail=
+                {"message": "Currency not found. Unfortunately we don't support other currencies"})
+
+
+async def check_pair_in_list(currency):
+    if currency not in BINANCE_USDT_PAIRS_LIST and currency != "USDT":
         raise HTTPException(status_code=400, detail=
                 {"message": "Currency not found. Unfortunately we don't support other currencies"})
 
@@ -345,6 +350,8 @@ async def save_coin_data_to_redis(json_list):
 
 async def get_currency_data_from_redis(currency: str, websocket: WebSocket):
     try:
+        await check_pair_in_list(currency)
+
         for key in redis_client.scan_iter(f"*_{currency}", count=100):
             value = redis_client.get(key)
             value_dict = json.loads(str(value).replace("'", "\""))
