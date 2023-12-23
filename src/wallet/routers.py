@@ -14,6 +14,11 @@ async def get_wallet(user_id: int, session: AsyncSession = Depends(get_async_ses
     return await services.get__wallet(user_id=user_id, session=session)
 
 
+@wallet_router.get("/get/wallet")
+async def get_all_wallet_data(user_id: int, session: AsyncSession = Depends(get_async_session)):
+    return await services.get__all__wallet__data(user_id=user_id, session=session)
+
+
 @wallet_router.put("/set/balance")
 async def set_balance(user_id: int, balance: schemas.BalanceChangeSchema, session: AsyncSession = Depends(get_async_session)):
     return await services.set__balance(user_id=user_id, balance=balance, session=session)

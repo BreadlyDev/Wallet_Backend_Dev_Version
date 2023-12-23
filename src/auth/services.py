@@ -14,7 +14,7 @@ import jwt
 
 from src.auth.mail_sender import send_email
 from src.auth.models import User, Role
-from src.auth.schemas import RoleCreateSchema
+from src.auth.schemas import RoleCreateSchema, UserCreate, LoginSchema
 from src.auth.utilts import get_user_db
 from src.config import SECRET
 from src.database import async_session_maker
@@ -71,9 +71,7 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         print(f"User {user.id} has registered.")
-        wallet_dict = {
-            "user_id": user.id,
-        }
+        wallet_dict = {"user_id": user.id}
         wallet_data = WalletCreateSchema(**wallet_dict)
         await create__wallet(wallet_data=wallet_data)
 
@@ -181,8 +179,32 @@ async def create_refresh_token(data: dict):
     return encoded_jwt
 
 
-async def login(email: EmailStr, password: str, session: AsyncSession = async_session_maker()):
+async def register(user: UserCreate, session: AsyncSession = async_session_maker()):
     try:
+        pwt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        hashed_password = pwt_context.hash(user.password)
+        user_dict = user.model_dump()
+        user_dict.pop("password")
+        user_dict["hashed_password"] = hashed_password
+
+        stmt = insert(User).values(**user_dict)
+        await session.execute(stmt)
+        await session.commit()
+
+        token_data = {"sub": user.email}
+        access_token = await create_access_token(token_data)
+
+        return {"access_token": access_token, "token_type": "bearer"}, user_dict
+    except HTTPException as e:
+        return e
+    except Exception as e:
+        print(e)
+
+
+async def login(login_data: LoginSchema, session: AsyncSession = async_session_maker()):
+    try:
+        email = login_data.email
+        password = login_data.password
         user = await get_user_by_email(email=email, session=session)
 
         pwt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

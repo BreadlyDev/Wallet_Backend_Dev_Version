@@ -95,6 +95,21 @@ async def get__wallet(user_id: int, session: AsyncSession = async_session_maker(
         await session.close()
 
 
+async def get__all__wallet__data(user_id: int, session: AsyncSession = async_session_maker()):
+    try:
+        query = select(Wallet).where(Wallet.user_id == user_id)
+        result = await session.execute(query)
+        wallet = result.scalar()
+        query = select(Currency).where(Currency.wallet_id == wallet.id)
+        result = await session.execute(query)
+        currency = result.scalar()
+        return wallet, currency
+    except Exception as e:
+        print(e)
+    finally:
+        await session.close()
+
+
 async def create__wallet(wallet_data: schemas.WalletCreateSchema, session: AsyncSession = async_session_maker()):
     try:
         stmt = insert(Wallet).values(**wallet_data.model_dump())
