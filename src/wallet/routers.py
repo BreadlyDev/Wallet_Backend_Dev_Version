@@ -14,7 +14,7 @@ async def get_wallet(user_id: int, session: AsyncSession = Depends(get_async_ses
     return await services.get__wallet(user_id=user_id, session=session)
 
 
-@wallet_router.get("/get/wallet")
+@wallet_router.get("/get/all/wallet/data")
 async def get_all_wallet_data(user_id: int, session: AsyncSession = Depends(get_async_session)):
     return await services.get__all__wallet__data(user_id=user_id, session=session)
 

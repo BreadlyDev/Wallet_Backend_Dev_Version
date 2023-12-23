@@ -192,6 +192,9 @@ async def register(user: UserCreate, session: AsyncSession = async_session_maker
 
         token_data = {"sub": user.email}
         access_token = await create_access_token(token_data)
+        wallet_dict = {"user_id": user.id}
+        wallet_data = WalletCreateSchema(**wallet_dict)
+        await create__wallet(wallet_data=wallet_data)
 
         return {"access_token": access_token, "token_type": "bearer"}, user_dict
     except HTTPException as e:
