@@ -24,6 +24,7 @@ from src.wallet.schemas import WalletCreateSchema
 SECRET_KEY = SECRET
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
+REFRESH_TOKEN_EXPIRE_DAYS = 1
 
 
 class CustomOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):

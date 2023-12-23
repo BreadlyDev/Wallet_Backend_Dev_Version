@@ -31,6 +31,11 @@ class UserUpdate(schemas.BaseUserUpdate):
     pass
 
 
+class LoginSchema(BaseModel):
+    email: str
+    password: str
+
+
 class RoleCreateSchema(BaseModel):
     name: str
     permissions: dict
