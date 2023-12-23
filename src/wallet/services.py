@@ -102,8 +102,9 @@ async def get__all__wallet__data(user_id: int, session: AsyncSession = async_ses
         wallet = result.scalar()
         query = select(Currency).where(Currency.wallet_id == wallet.id)
         result = await session.execute(query)
-        currency = result.scalar()
-        return wallet, currency
+        currencies = [row._asdict() for row in result.fetchall()]
+
+        return {"wallet": wallet, "currencies": currencies}
     except Exception as e:
         print(e)
     finally:
