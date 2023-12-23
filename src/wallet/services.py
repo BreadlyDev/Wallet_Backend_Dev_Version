@@ -1,5 +1,6 @@
 import asyncio
 import json
+from datetime import datetime, timezone
 
 import requests
 import websockets
@@ -180,7 +181,7 @@ async def get_current_price(currency: str):
         key = currency + "USDT"
         currency_data = redis_client.get(key).replace("'", "\"")
         data_dict = json.loads(currency_data)
-        price = data_dict["o"]
+        price = data_dict["c"]
         if price:
             return float(price)
         return {"message": "Error happened. (Probably coin doesn't exist)"}
@@ -346,15 +347,21 @@ async def get_currency_data_from_redis(currency: str, websocket: WebSocket):
     try:
         for key in redis_client.scan_iter(f"*_{currency}", count=100):
             value = redis_client.get(key)
-            data = {key: value}
+            value_dict = json.loads(str(value).replace("'", "\""))
+            time = value_dict["E"]
+            symbol = value_dict["s"]
+            price = value_dict["c"]
+            data = {"time": time, "symbol": symbol, "price": price}
             await websocket.send_json(str(data))
 
         while websocket.client_state != WebSocketState.DISCONNECTED:
             for key in redis_client.scan_iter(f"{currency}", count=100):
                 value = redis_client.get(key)
-                time = json.loads(str(value).replace("'", "\""))["E"]
-                key = f"{time}_{key}"
-                data = {key: value}
+                value_dict = json.loads(str(value).replace("'", "\""))
+                time = value_dict["E"]
+                symbol = value_dict["s"]
+                price = value_dict["c"]
+                data = {"time": time, "symbol": symbol, "price": price}
                 await websocket.send_json(str(data))
                 await asyncio.sleep(1)
     except RedisError as e:
@@ -368,7 +375,6 @@ async def get_currency_data_from_redis(currency: str, websocket: WebSocket):
 # BinanceAPI services
 async def get_currency_data():
     url = BINANCE_WEBSOCKET_ALL_COINS_URL
-
     try:
         async with websockets.connect(uri=url) as ws:
             while True:
