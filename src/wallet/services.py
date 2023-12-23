@@ -8,6 +8,8 @@ from redis import RedisError
 from sqlalchemy import insert, update, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import WebSocket, HTTPException
+from starlette.websockets import WebSocketState
+
 from src.database import async_session_maker
 from src.config import BINANCE_WEBSOCKET_URL, CURRENCY_CACHE_TIME, BINANCE_WEBSOCKET_ALL_COINS_URL, BINANCE_CURRENCY_LIST
 from src.database import redis_client
@@ -340,25 +342,21 @@ async def save_coin_data_to_redis(json_list):
         redis_client.close()
 
 
-# async def get_currency_data_from_redis(currency: str):
-#     try:
-#         for key in redis_client.scan_iter(f"*_{currency}", count=100):
-#             value = redis_client.get(key)
-#             print(f"{key}  {value}")
-#             yield {key: value}
-#     except Exception as e:
-#         print(f"Error while getting coin data: {e}")
-#     finally:
-#         redis_client.close()
-
-
 async def get_currency_data_from_redis(currency: str, websocket: WebSocket):
     try:
         for key in redis_client.scan_iter(f"*_{currency}", count=100):
             value = redis_client.get(key)
             data = {key: value}
-            print(data)
             await websocket.send_json(str(data))
+
+        while websocket.client_state != WebSocketState.DISCONNECTED:
+            for key in redis_client.scan_iter(f"{currency}", count=100):
+                value = redis_client.get(key)
+                time = json.loads(str(value).replace("'", "\""))["E"]
+                key = f"{time}_{key}"
+                data = {key: value}
+                await websocket.send_json(str(data))
+                await asyncio.sleep(1)
     except RedisError as e:
         print(f"Error while getting coin data: {e}")
     except Exception as e:
@@ -380,21 +378,6 @@ async def get_currency_data():
                 await asyncio.sleep(1)
     except Exception as e:
         print(f"Error while getting coin data: {e}")
-
-# async def send_tickers_to_redis(redis):
-#     url = BINANCE_WEBSOCKET_ALL_COINS_URL
-#
-#     try:
-#         async with websockets.connect(uri=url) as ws:
-#             while True:
-#                 data = await ws.recv()
-#                 json_list = json.loads(data)
-#                 # await asyncio.to_thread(process_json_list, json_list=json_list, coin_name=coin_name)
-#
-#                 await redis.publish('your_channel_name', data)
-#                 await asyncio.sleep(1)
-#     except Exception as e:
-#         print(f"Error in send_tickers_to_redis: {e}")
 
 
 async def get_history_prices(websocket: WebSocket, coin_name: str, interval: str):

@@ -4,7 +4,6 @@ from typing import Optional, Annotated, Union
 from fastapi import Depends, Request, Form, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_users import IntegerIDMixin, BaseUserManager, schemas, exceptions, models
-from fastapi_users.authentication import JWTStrategy
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from pydantic import EmailStr
 from sqlalchemy import select, insert
@@ -22,10 +21,9 @@ from src.database import async_session_maker
 from src.wallet.services import create__wallet
 from src.wallet.schemas import WalletCreateSchema
 
-
 SECRET_KEY = SECRET
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
 class CustomOAuth2PasswordRequestForm(OAuth2PasswordRequestForm):
@@ -88,6 +86,7 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
     ):
         print(f"Verification requested for user {user.id}. Verification token: {token}")
         await send_email(user.email, token)
+        return {"message": "Please check your email"}
 
     async def create(
             self,

@@ -41,7 +41,7 @@ class Currency(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     wallet_id: Mapped[int] = mapped_column(ForeignKey("wallet.id", onupdate="NO ACTION", ondelete="CASCADE"), nullable=False)
-    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
     quantity: Mapped[float] = mapped_column(default=0, nullable=False)
 
     wallet = relationship("Wallet", back_populates="currency")
