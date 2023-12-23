@@ -173,6 +173,14 @@ async def create_access_token(data: dict):
     return encoded_jwt
 
 
+async def create_refresh_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
 async def login(email: EmailStr, password: str, session: AsyncSession = async_session_maker()):
     try:
         user = await get_user_by_email(email=email, session=session)
