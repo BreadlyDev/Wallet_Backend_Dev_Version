@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from redis import RedisError
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse
+from websockets.exceptions import ConnectionClosed
 
 from src.auth.routers import auth_router
 from src.wallet.services import get_history_prices, WebSocket, get_currency_data, get_currency_data_from_redis
@@ -16,19 +17,15 @@ app = FastAPI(
 )
 
 origins = [
-    "http://localhost",
-    "http://localhost:8080",
-    "127.0.0.1:8080",
-    "127.0.0.1:61033",
-    "127.0.0.1:61034",
-    "*",
+    "http://localhost:5173",
+    "127.0.0.1:5173",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"],
     allow_headers=["*"],
 )
 
@@ -110,10 +107,13 @@ async def startup_event():
 async def on_startup():
     try:
         asyncio.create_task(get_currency_data())
-    except asyncio.TimeoutError as e:
-        print(e)
-    except RedisError as e:
-        print(e)
+    except ConnectionClosed as e:
+        print(f"Websocket connection closed: {e}")
+        asyncio.create_task(get_currency_data())
+        print("Reconnecting...")
+    except Exception as e:
+        print(f"Error during startup: {e}")
+        asyncio.create_task(get_currency_data())
 
 if __name__ == "__main__":
     uvicorn.run(app, port=8080, reload=True)

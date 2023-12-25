@@ -97,9 +97,7 @@ async def get__wallet(user_id: int, session: AsyncSession = async_session_maker(
 
 async def get__all__wallet__data(user_id: int, session: AsyncSession = async_session_maker()):
     try:
-        query = select(Wallet).where(Wallet.user_id == user_id)
-        result = await session.execute(query)
-        wallet = result.scalar()
+        wallet = await get__wallet(user_id=user_id, session=session)
         query = select(Currency).where(Currency.wallet_id == wallet.id)
         result = await session.execute(query)
         currencies = [row._asdict() for row in result.fetchall()]
@@ -197,6 +195,7 @@ async def get__balance(user_id: int, session: AsyncSession = async_session_maker
         await session.close()
 
 
+# Redis
 async def get_current_price(currency: str):
     try:
         key = currency + "USDT"
@@ -211,6 +210,20 @@ async def get_current_price(currency: str):
 
 
 # Transaction services
+async def get__all__transaction(user_id: int, session: AsyncSession = async_session_maker()):
+    try:
+        wallet = await get__wallet(user_id=user_id, session=session)
+        query = select(Transaction).where(Transaction.wallet_id == wallet.id)
+        result = await session.execute(query)
+        transactions = [row._asdict() for row in result.fetchall()]
+
+        return {"transactions": transactions}
+    except Exception as e:
+        print(e)
+    finally:
+        await session.close()
+
+
 async def create_transaction(wallet_id: int, transaction: dict, session: AsyncSession = async_session_maker()):
     try:
         stmt = insert(Transaction).values(wallet_id=wallet_id, **transaction)
@@ -398,15 +411,21 @@ async def get_currency_data_from_redis(currency: str, websocket: WebSocket):
 # BinanceAPI services
 async def get_currency_data():
     url = BINANCE_WEBSOCKET_ALL_COINS_URL
-    try:
-        async with websockets.connect(uri=url) as ws:
-            while True:
-                data = await ws.recv()
-                json_list = json.loads(data)
-                await save_coin_data_to_redis(json_list)
-                await asyncio.sleep(1)
-    except Exception as e:
-        print(f"Error while getting coin data: {e}")
+    while True:
+        try:
+            async with websockets.connect(uri=url, ping_interval=None, ping_timeout=None) as ws:
+                while True:
+                    data = await ws.recv()
+                    json_list = json.loads(data)
+                    await save_coin_data_to_redis(json_list)
+                    await asyncio.sleep(1)
+        except websockets.ConnectionClosed as e:
+            print(f"Websocket connection closed: {e}")
+            await asyncio.sleep(1)
+            print("Reconnecting...")
+        except Exception as e:
+            print(f"Error while getting coin data: {e}")
+            break
 
 
 async def get_history_prices(websocket: WebSocket, coin_name: str, interval: str):
