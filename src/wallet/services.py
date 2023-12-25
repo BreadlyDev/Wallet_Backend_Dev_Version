@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import json
 
 import requests
@@ -384,7 +385,8 @@ async def get_currency_data_from_redis(currency: str, websocket: WebSocket):
         for key in redis_client.scan_iter(f"*_{currency}", count=100):
             value = redis_client.get(key)
             value_dict = json.loads(str(value).replace("'", "\""))
-            time = value_dict["E"]
+            time = value_dict["E"] / 1000
+            time = datetime.datetime.utcfromtimestamp(time).strftime('%Y-%m-%d %H:%M:%S')
             symbol = value_dict["s"]
             price = value_dict["c"]
             data = {"time": time, "symbol": symbol, "price": price}
@@ -394,7 +396,8 @@ async def get_currency_data_from_redis(currency: str, websocket: WebSocket):
             for key in redis_client.scan_iter(f"{currency}", count=100):
                 value = redis_client.get(key)
                 value_dict = json.loads(str(value).replace("'", "\""))
-                time = value_dict["E"]
+                time = value_dict["E"] / 1000
+                time = datetime.datetime.utcfromtimestamp(time).strftime('%Y-%m-%d %H:%M:%S')
                 symbol = value_dict["s"]
                 price = value_dict["c"]
                 data = {"time": time, "symbol": symbol, "price": price}
