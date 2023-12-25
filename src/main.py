@@ -3,7 +3,6 @@ import asyncio
 import uvicorn
 
 from fastapi import FastAPI
-from redis import RedisError
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse
 from websockets.exceptions import ConnectionClosed

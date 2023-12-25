@@ -1,11 +1,9 @@
 import asyncio
 import datetime
 import json
-
-import requests
 import websockets
-from redis import RedisError
 
+from redis import RedisError
 from sqlalchemy import insert, update, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import WebSocket, HTTPException
@@ -438,29 +436,3 @@ async def get_history_prices(websocket: WebSocket, coin_name: str, interval: str
             data = await ws.recv()
             await websocket.send_json(data)
             await asyncio.sleep(1)
-
-
-# OtherCryptaAPI services
-def get_history_prices_coincap(interval: str = "d1"):
-    url = f"https://api.coincap.io/v2/assets/bitcoin/history?interval={interval}"
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        data = response.json()
-        return data['data']
-    return response.status_code
-
-
-def get_history_prices_gecko(symbol: str = "bitcoin", vs_currency: str = "usd",
-                                days: str | int = "90", interval: str = "daily"):
-    url = f'https://api.coingecko.com/api/v3/coins/{symbol}/market_chart'
-    params = {
-        'vs_currency': vs_currency,
-        'days': days,
-        'interval': interval,
-    }
-    response = requests.get(url, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        return data
-    return response.status_code
