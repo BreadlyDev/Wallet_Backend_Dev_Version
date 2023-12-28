@@ -197,10 +197,11 @@ async def get__balance(user_id: int, session: AsyncSession = async_session_maker
 # Redis
 async def get_current_price(currency: str):
     try:
-        redis_client = await aioredis.from_url(REDIS_URL)
+        redis_client = await aioredis.from_url(REDIS_URL, decode_responses=True)
         async with redis_client:
             key = currency + "USDT"
-            currency_data = await redis_client.get(key).replace("'", "\"")
+            currency_data = await redis_client.get(key)
+            currency_data = currency_data.replace("'", "\"")
             data_dict = json.loads(currency_data)
             price = data_dict["c"]
             if price:
@@ -266,7 +267,11 @@ async def buy__currency(user_id: int, transaction: schemas.PurchaseCoinSchema, s
         await create_transaction(wallet_id=wallet.id, transaction=transaction_dict, session=session)
         balance_dict = {"quantity": balance}
         await set__balance(user_id=user_id, balance=schemas.BalanceChangeSchema(**balance_dict), session=session)
-        return {"message": f"{c_quantity} {t_currency} successfully purchased"}
+        return {
+            "message": f"{c_quantity} {t_currency} successfully purchased",
+            "price(all)": f"{c_quantity * price}",
+            "price": f"{price}"
+        }
     except HTTPException as e:
         return e
     except Exception as e:
@@ -304,7 +309,11 @@ async def sell__currency(user_id: int, transaction: schemas.SaleCoinSchema, sess
         await create_transaction(wallet_id=wallet.id, transaction=transaction_dict, session=session)
         balance_dict = {"name": "USDT", "quantity": balance}
         await set__balance(user_id=user_id, balance=schemas.BalanceChangeSchema(**balance_dict))
-        return {"message": f"{c_quantity} {t_currency} successfully sold"}
+        return {
+            "message": f"{c_quantity} {t_currency} successfully sold",
+            "price(all)": f"{c_quantity * price}",
+            "price": f"{price}"
+        }
     except HTTPException as e:
         return e
     except Exception as e:
@@ -353,7 +362,11 @@ async def swap__currency(user_id: int, transaction: schemas.SwapCoinSchema, sess
             await create__currency(currency=schemas.CurrencyCreateSchema(**currency_dict_2))
         await set__currency(user_id=user_id, currency=schemas.CurrencyChangeSchema(**currency_dict_1))
         await create_transaction(wallet_id=wallet.id, transaction=transaction_dict, session=session)
-        return {"message": f"{c_quantity} {t_currency} successfully swapped to {c_quantity_2} {t_currency_2}"}
+        return {
+            "message": f"{c_quantity} {t_currency} successfully swapped to {c_quantity_2} {t_currency_2}",
+            "price(all)": f"{c_quantity * price_1 / price_2}",
+            "price": f"{price_1 / price_2}"
+        }
     except HTTPException as e:
         return e
     except Exception as e:
