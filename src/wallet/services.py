@@ -402,25 +402,27 @@ async def get_currency_data_from_redis(currency: str, websocket: WebSocket):
             # keys = await redis_client.scan_iter(f"*_{currency}", count=100)
             for key in keys:
                 value = await redis_client.get(key)
-                value_dict = json.loads(str(value, 'utf-8').replace("'", "\""))
-                time = value_dict["E"]
-                symbol = value_dict["s"]
-                price = value_dict["c"]
-                data = {"time": time, "symbol": symbol, "price": price}
-                await websocket.send_json(str(data))
-
-            while websocket.client_state != WebSocketState.DISCONNECTED:
-                keys = await redis_client.keys(f"*_{currency}")
-                # keys = await redis_client.scan_iter(f"*_{currency}", count=100)
-                for key in keys:
-                    value = await redis_client.get(key)
+                if isinstance(value, bytes):
                     value_dict = json.loads(str(value, 'utf-8').replace("'", "\""))
                     time = value_dict["E"]
                     symbol = value_dict["s"]
                     price = value_dict["c"]
                     data = {"time": time, "symbol": symbol, "price": price}
                     await websocket.send_json(str(data))
-                    await asyncio.sleep(1)
+
+            while websocket.client_state != WebSocketState.DISCONNECTED:
+                keys = await redis_client.keys(f"*_{currency}")
+                # keys = await redis_client.scan_iter(f"*_{currency}", count=100)
+                for key in keys:
+                    value = await redis_client.get(key)
+                    if isinstance(value, bytes):
+                        value_dict = json.loads(str(value, 'utf-8').replace("'", "\""))
+                        time = value_dict["E"]
+                        symbol = value_dict["s"]
+                        price = value_dict["c"]
+                        data = {"time": time, "symbol": symbol, "price": price}
+                        await websocket.send_json(str(data))
+                        await asyncio.sleep(1)
     except Exception as e:
         print(f"Unexpected error: {e}")
     finally:
